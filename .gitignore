@@ -1,0 +1,6 @@
+node_modules
+wp-mobile-bottom-bar/build
+mobile-bottom-bar-plugin.zip
+dist
+*.log
+.DS_Store
