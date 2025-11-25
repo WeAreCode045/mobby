@@ -4,6 +4,7 @@ export interface MenuOption {
 }
 
 export interface MobileBarSettingsPayload {
+  enabled: boolean;
   selectedMenu: string;
   barStyle: 'light' | 'dark';
   accentColor: string;

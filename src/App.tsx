@@ -23,6 +23,7 @@ export default function App() {
   const pluginData = getBootstrapData();
   const menus = (pluginData.menus && pluginData.menus.length > 0 ? pluginData.menus : defaultMenus) ?? defaultMenus;
   const initialSettings: MobileBarSettingsPayload = {
+    enabled: pluginData.settings?.enabled ?? false,
     selectedMenu: pluginData.settings?.selectedMenu ?? menus[0]?.id ?? 'primary-menu',
     barStyle: pluginData.settings?.barStyle ?? 'dark',
     accentColor: pluginData.settings?.accentColor ?? '#6366f1',
@@ -36,6 +37,7 @@ export default function App() {
     textColor: pluginData.settings?.textColor ?? '#6b7280',
   };
 
+  const [enabled, setEnabled] = useState(initialSettings.enabled);
   const [selectedMenu, setSelectedMenu] = useState(initialSettings.selectedMenu);
   const [barStyle, setBarStyle] = useState<'light' | 'dark'>(initialSettings.barStyle);
   const [accentColor, setAccentColor] = useState(initialSettings.accentColor);
@@ -53,6 +55,7 @@ export default function App() {
 
   const canPersist = Boolean(pluginData.restUrl && pluginData.nonce);
   const payload: MobileBarSettingsPayload = {
+    enabled,
     selectedMenu,
     barStyle,
     accentColor,
@@ -126,6 +129,8 @@ export default function App() {
           {/* Settings Panel */}
           <div className="space-y-6">
             <MobileBottomBarSettings
+              enabled={enabled}
+              onEnabledChange={setEnabled}
               selectedMenu={selectedMenu}
               onMenuChange={setSelectedMenu}
               menus={menus}

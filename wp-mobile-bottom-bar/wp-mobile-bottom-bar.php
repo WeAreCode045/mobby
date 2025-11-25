@@ -32,6 +32,8 @@ final class Mobile_Bottom_Bar_Plugin {
         add_action('admin_menu', [$this, 'register_admin_page']);
         add_action('admin_enqueue_scripts', [$this, 'enqueue_assets']);
         add_action('rest_api_init', [$this, 'register_rest_routes']);
+        add_action('wp_enqueue_scripts', [$this, 'enqueue_frontend_assets']);
+        add_action('wp_footer', [$this, 'render_frontend_bar']);
     }
 
     public function register_admin_page(): void {
@@ -95,6 +97,25 @@ final class Mobile_Bottom_Bar_Plugin {
         );
     }
 
+    public function enqueue_frontend_assets(): void {
+        if (is_admin()) {
+            return;
+        }
+
+        $settings = $this->get_settings();
+
+        if (empty($settings['enabled']) || empty($settings['selectedMenu'])) {
+            return;
+        }
+
+        wp_enqueue_style(
+            'mobile-bottom-bar-frontend',
+            plugin_dir_url(__FILE__) . 'public/frontend.css',
+            [],
+            self::VERSION
+        );
+    }
+
     public function register_rest_routes(): void {
         register_rest_route(
             'mobile-bottom-bar/v1',
@@ -132,19 +153,25 @@ final class Mobile_Bottom_Bar_Plugin {
     }
 
     private function get_manifest_entry(): ?array {
-        $manifest_path = plugin_dir_path(__FILE__) . 'build/manifest.json';
+        $base = plugin_dir_path(__FILE__) . 'build/';
+        $candidates = [
+            $base . '.vite/manifest.json',
+            $base . 'manifest.json',
+        ];
 
-        if (!file_exists($manifest_path)) {
-            return null;
+        foreach ($candidates as $manifest_path) {
+            if (!file_exists($manifest_path)) {
+                continue;
+            }
+
+            $manifest = json_decode((string) file_get_contents($manifest_path), true);
+
+            if (is_array($manifest)) {
+                return $manifest['src/main.tsx'] ?? null;
+            }
         }
 
-        $manifest = json_decode((string) file_get_contents($manifest_path), true);
-
-        if (!is_array($manifest)) {
-            return null;
-        }
-
-        return $manifest['src/main.tsx'] ?? null;
+        return null;
     }
 
     private function get_menus(): array {
@@ -165,6 +192,7 @@ final class Mobile_Bottom_Bar_Plugin {
 
     private function get_settings(): array {
         $defaults = [
+            'enabled' => false,
             'selectedMenu' => '',
             'barStyle' => 'dark',
             'accentColor' => '#6366f1',
@@ -185,6 +213,7 @@ final class Mobile_Bottom_Bar_Plugin {
 
     private function sanitize_settings(array $data): array {
         return [
+            'enabled' => (bool) ($data['enabled'] ?? false),
             'selectedMenu' => sanitize_key($data['selectedMenu'] ?? ''),
             'barStyle' => in_array($data['barStyle'] ?? 'dark', ['light', 'dark'], true) ? $data['barStyle'] : 'dark',
             'accentColor' => sanitize_hex_color($data['accentColor'] ?? '#6366f1') ?: '#6366f1',
@@ -201,6 +230,10 @@ final class Mobile_Bottom_Bar_Plugin {
 
     private function get_rest_args(): array {
         return [
+            'enabled' => [
+                'type' => 'boolean',
+                'required' => false,
+            ],
             'selectedMenu' => [
                 'type' => 'string',
                 'required' => false,
@@ -247,6 +280,101 @@ final class Mobile_Bottom_Bar_Plugin {
                 'required' => false,
             ],
         ];
+    }
+
+    public function render_frontend_bar(): void {
+        if (is_admin()) {
+            return;
+        }
+
+        $settings = $this->get_settings();
+
+        if (empty($settings['enabled']) || empty($settings['selectedMenu'])) {
+            return;
+        }
+
+        $items = $this->get_menu_items($settings['selectedMenu']);
+
+        if (empty($items)) {
+            return;
+        }
+
+        $style_attribute = $this->build_style_attribute($settings);
+        $classes = ['wp-mbb'];
+        $classes[] = $settings['barStyle'] === 'light' ? 'wp-mbb--light' : 'wp-mbb--dark';
+
+        echo '<nav id="wp-mobile-bottom-bar" class="' . esc_attr(implode(' ', $classes)) . '" style="' . esc_attr($style_attribute) . '" aria-label="' . esc_attr__('Mobile bottom navigation', 'mobile-bottom-bar') . '">';
+        echo '<div class="wp-mbb__inner">';
+
+        foreach ($items as $item) {
+            if (!($item instanceof \WP_Post)) {
+                continue;
+            }
+
+            $is_current = in_array('current-menu-item', (array) $item->classes, true);
+            $item_classes = ['wp-mbb__item'];
+
+            if ($is_current) {
+                $item_classes[] = 'is-active';
+            }
+
+            $target = $item->target ? ' target="' . esc_attr($item->target) . '"' : '';
+            $rel = $item->xfn ? ' rel="' . esc_attr($item->xfn) . '"' : '';
+
+            echo '<a class="' . esc_attr(implode(' ', $item_classes)) . '" href="' . esc_url($item->url ?? '#') . '"' . $target . $rel . '>';
+            echo '<span class="wp-mbb__icon" aria-hidden="true">';
+            echo '<span class="wp-mbb__icon-dot"></span>';
+            echo '</span>';
+
+            if (!empty($settings['showLabels'])) {
+                echo '<span class="wp-mbb__label">' . esc_html($item->title ?? '') . '</span>';
+            }
+
+            echo '</a>';
+        }
+
+        echo '</div>';
+        echo '</nav>';
+    }
+
+    private function get_menu_items(string $menu_slug): array {
+        $menu = wp_get_nav_menu_object($menu_slug);
+
+        if (!$menu && is_numeric($menu_slug)) {
+            $menu = wp_get_nav_menu_object((int) $menu_slug);
+        }
+
+        if (!$menu) {
+            return [];
+        }
+
+        $items = wp_get_nav_menu_items($menu->term_id);
+
+        return is_array($items) ? $items : [];
+    }
+
+    private function build_style_attribute(array $settings): string {
+        $background = $settings['barStyle'] === 'light' ? '#ffffff' : '#0f172a';
+        $text = $settings['barStyle'] === 'light' ? '#0f172a' : '#f8fafc';
+
+        $variables = [
+            '--wp-mbb-accent' => $settings['accentColor'],
+            '--wp-mbb-background' => $background,
+            '--wp-mbb-text' => $text,
+            '--wp-mbb-icon-color' => $settings['iconColor'],
+            '--wp-mbb-text-color' => $settings['textColor'],
+            '--wp-mbb-icon-size' => $settings['iconSize'] . 'px',
+            '--wp-mbb-text-size' => $settings['textSize'] . 'px',
+            '--wp-mbb-text-weight' => $settings['textWeight'],
+        ];
+
+        $chunks = [];
+
+        foreach ($variables as $key => $value) {
+            $chunks[] = $key . ':' . $value;
+        }
+
+        return implode(';', $chunks);
     }
 }
 

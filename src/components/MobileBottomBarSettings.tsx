@@ -5,6 +5,8 @@ import { Switch } from './ui/switch';
 import type { MenuOption } from '../types/plugin';
 
 interface MobileBottomBarSettingsProps {
+  enabled: boolean;
+  onEnabledChange: (enabled: boolean) => void;
   selectedMenu: string;
   onMenuChange: (menu: string) => void;
   menus: MenuOption[];
@@ -39,6 +41,8 @@ const colorPresets = [
 ];
 
 export function MobileBottomBarSettings({
+  enabled,
+  onEnabledChange,
   selectedMenu,
   onMenuChange,
   menus,
@@ -64,19 +68,29 @@ export function MobileBottomBarSettings({
   onTextColorChange,
 }: MobileBottomBarSettingsProps) {
   const hasMenus = menus.length > 0;
+  const menuValue = hasMenus ? selectedMenu : '';
   return (
     <Card className="p-6">
       <h2 className="text-gray-900 mb-6">Configuration</h2>
 
-      {/* Menu Selection */}
       <div className="space-y-4">
+        {/* Activation Toggle */}
+        <div className="flex items-center justify-between p-4 bg-gray-50 border border-gray-200 rounded-lg">
+          <div>
+            <Label className="text-gray-900">Activate Bottom Bar</Label>
+            <p className="text-gray-600 text-sm">Show the bar on screens smaller than 768px across your site.</p>
+          </div>
+          <Switch checked={enabled} onCheckedChange={onEnabledChange} />
+        </div>
+
+        {/* Menu Selection */}
         <div>
           <Label htmlFor="menu-select" className="text-gray-700 mb-2 block">
             Select Menu
           </Label>
           <select
             id="menu-select"
-            value={selectedMenu}
+            value={menuValue}
             onChange={(event: ChangeEvent<HTMLSelectElement>) => onMenuChange(event.target.value)}
             disabled={!hasMenus}
             className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-500"
