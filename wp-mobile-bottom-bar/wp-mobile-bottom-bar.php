@@ -34,6 +34,7 @@ final class Mobile_Bottom_Bar_Plugin {
         add_action('rest_api_init', [$this, 'register_rest_routes']);
         add_action('wp_enqueue_scripts', [$this, 'enqueue_frontend_assets']);
         add_action('wp_footer', [$this, 'render_frontend_bar']);
+        add_filter('body_class', [$this, 'filter_body_class']);
     }
 
     public function register_admin_page(): void {
@@ -375,6 +376,20 @@ final class Mobile_Bottom_Bar_Plugin {
         }
 
         return implode(';', $chunks);
+    }
+
+    public function filter_body_class(array $classes): array {
+        if (is_admin()) {
+            return $classes;
+        }
+
+        $settings = $this->get_settings();
+
+        if (!empty($settings['enabled']) && !empty($settings['selectedMenu'])) {
+            $classes[] = 'wp-mobile-bottom-bar-active';
+        }
+
+        return $classes;
     }
 }
 

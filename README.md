@@ -38,13 +38,14 @@ This creates `mobile-bottom-bar-plugin.zip` that you can upload in the WordPress
 
 1. Copy the `wp-mobile-bottom-bar` directory (after running `npm run build`) into `wp-content/plugins/`.
 2. Activate **Mobile Bottom Bar Builder** from **Plugins → Installed Plugins**.
-3. A new **Mobile Bottom Bar** entry appears in the left admin menu. Open it to load the React app.
+3. A new **Mobile Bottom Bar** entry appears in the left admin menu. Open it to load the React app, toggle **Activate Bottom Bar**, and pick the menu + styles you want.
 
 ## How the plugin works
 
 - `wp-mobile-bottom-bar/wp-mobile-bottom-bar.php` registers the admin page, enqueues the Vite bundle, and exposes WordPress menus + saved settings to the React app via `mobileBottomBarData`.
 - A REST endpoint at `/wp-json/mobile-bottom-bar/v1/settings` persists settings in the `mobile_bottom_bar_settings` option. The React **Save Changes** button calls this endpoint with the required nonce.
 - Menu options are pulled from `wp_get_nav_menus()`. If the site has no menus yet, the UI falls back to mock entries.
+- When activated, the plugin enqueues a lightweight front-end stylesheet and renders the configured menu at the bottom of every public page for viewports under 768px. The page body receives a `wp-mobile-bottom-bar-active` class so content clears the fixed bar.
 
 ## Development tips
 
